@@ -1,0 +1,52 @@
+version: '3'
+services:
+    app:
+        image: rg.fr-par.scw.cloud/protocode-tech/php-8.2
+        environment:
+            VIRTUAL_HOST: app.local
+            NGINX_ROOT_DIR: public
+            NGINX_INDEX_FILE: index.php
+            URL_REWRITING: '1'
+        labels:
+            # Set aliases to use binaries within container from environment terminal
+            protocode.alias.php: "docker-compose exec -u $(id -u):$(id -g) app php"
+            protocode.alias.composer: "docker-compose run --rm -u $(id -u):$(id -g) -it --entrypoint= --no-deps app composer"
+            protocode.alias.bin/console: "php bin/console"
+        links:
+            - database
+            - maildev
+        volumes:
+            - '.:/var/www'
+    # Mysql container
+    database:
+        image: 'mysql:8'
+        command: --default-authentication-plugin=mysql_native_password
+        environment:
+            MYSQL_DATABASE: ${DB_NAME}
+            MYSQL_USER: ${DB_USER}
+            MYSQL_PASSWORD: ${DB_PASSWORD}
+            MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+            MYSQL_PORT: ${DB_PORT}
+        volumes:
+            - ../.docker-volumes/database:/var/lib/mysql:delegated
+        restart: unless-stopped
+    # Phpmyadmin container
+    phpmyadmin:
+        image: phpmyadmin/phpmyadmin
+        environment:
+            VIRTUAL_HOST: phpmyadmin.local
+            MYSQL_USERNAME: ${DB_USER}
+            MYSQL_PASSWORD: ${DB_PASSWORD}
+            PMA_USERNAME: ${DB_USER}
+            PMA_PASSWORD: ${DB_PASSWORD}
+            PMA_HOSTS: ${DB_HOST}
+        links:
+            - database
+        restart: unless-stopped
+    # Mailing client
+    maildev:
+        image: maildev/maildev
+        environment:
+            VIRTUAL_HOST: maildev.local
+            VIRTUAL_PORT: 1080
+        restart: unless-stopped
